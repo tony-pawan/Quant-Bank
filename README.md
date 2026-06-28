@@ -15,6 +15,11 @@ Built with a strong emphasis on:
 * Production-oriented engineering practices
 
 ---
+<img width="1365" height="767" alt="image" src="https://github.com/user-attachments/assets/3eda59d3-d6a3-4550-8ade-583402a2a16a" />
+<img width="1365" height="767" alt="image" src="https://github.com/user-attachments/assets/6090861c-1a8d-45fc-8627-8af17a1d40f9" />
+<img width="1363" height="767" alt="image" src="https://github.com/user-attachments/assets/60ca9739-3bca-453a-a775-a49b992bbf58" />
+
+
 
 ## 🎯 Assignment Requirements Implemented
 
