@@ -1,3 +1,4 @@
+# pyrefly: ignore [missing-import]
 from sqlalchemy.orm import Session
 from app.models.transaction import Transaction
 from app.config.constants import DEFAULT_CATEGORIES
