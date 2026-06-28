@@ -1,9 +1,12 @@
 import React from 'react';
 import { ArrowDownLeft, ArrowUpRight, Gift, Trash2 } from 'lucide-react';
 
-const CATEGORIES = ["Food", "Travel", "Salary", "Miscellaneous"];
-
-export default function TransactionCard({ transaction, onUpdateCategory, onDeleteTransaction }) {
+export default function TransactionCard({ 
+  transaction, 
+  onUpdateCategory, 
+  onDeleteTransaction,
+  categories = ["Food", "Travel", "Salary", "Miscellaneous"]
+}) {
   const { id, raw_message, amount, transaction_type, merchant, category, reward_amount, timestamp } = transaction;
   
   const isCredit = transaction_type === 'credit';
@@ -35,7 +38,7 @@ export default function TransactionCard({ transaction, onUpdateCategory, onDelet
             <span className="font-extrabold text-slate-800 dark:text-slate-100 text-sm truncate">
               {merchant || (isCredit ? 'Deposit' : 'Debit')}
             </span>
-            <p className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 truncate leading-relaxed" title={raw_message}>
+            <p className="text-[11px] font-semibold text-slate-600 dark:text-slate-400 truncate leading-relaxed" title={raw_message}>
               {raw_message}
             </p>
             <span className="text-[9px] font-extrabold text-slate-400 dark:text-slate-550 mt-0.5">
@@ -59,7 +62,7 @@ export default function TransactionCard({ transaction, onUpdateCategory, onDelet
                 onChange={(e) => onUpdateCategory(id, e.target.value)}
                 className="text-[10px] font-extrabold bg-slate-50 dark:bg-slate-850 border border-slate-200/60 dark:border-slate-750 text-slate-600 dark:text-slate-400 rounded-lg px-2 py-0.5 focus:outline-none cursor-pointer"
               >
-                {CATEGORIES.map(cat => (
+                {categories.map(cat => (
                   <option key={cat} value={cat}>{cat}</option>
                 ))}
               </select>

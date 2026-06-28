@@ -17,10 +17,10 @@ export default function Navbar({
       {/* Left: App Logo & Name */}
       <div className="flex items-center gap-2">
         <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-blue-500 to-indigo-500 flex items-center justify-center text-white font-extrabold shadow-md shadow-blue-500/20">
-          B
+          Q
         </div>
         <span className="font-black text-lg tracking-tight text-slate-800 dark:text-slate-100">
-          Bankio
+          QuantBank
         </span>
       </div>
 

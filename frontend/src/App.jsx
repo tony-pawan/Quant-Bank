@@ -6,15 +6,18 @@ import SpendingCard from './components/SpendingCard';
 import InsightsCard from './components/InsightsCard';
 import ExpenseAnalytics from './components/ExpenseAnalytics';
 import CategoryProgress from './components/CategoryProgress';
+import CategoryManager from './components/CategoryManager';
 import ExpectedSavingsCard from './components/ExpectedSavingsCard';
 import TransactionList from './components/TransactionList';
 import AddTransactionModal from './components/AddTransactionModal';
 import LoadingSkeleton from './components/LoadingSkeleton';
 import { AlertOctagon, RotateCcw } from 'lucide-react';
+import toast, { Toaster } from 'react-hot-toast';
 
 export default function App() {
-  // Core application states
+  // Database States
   const [transactions, setTransactions] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [analytics, setAnalytics] = useState({
     category_totals: {},
     category_percentages: {},
@@ -29,31 +32,20 @@ export default function App() {
   const [isSubmitLoading, setIsSubmitLoading] = useState(false);
   const [error, setError] = useState(null);
   
-  // Theme and UI Tabs
+  // Theme and active UI Tab
   const [darkMode, setDarkMode] = useState(() => {
     const saved = localStorage.getItem('darkMode');
     return saved ? JSON.parse(saved) : false;
   });
   const [activeTab, setActiveTab] = useState("Dashboard");
 
-  // Filtering states
+  // Filter, Search, and Sort States
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
   const [categoryFilter, setCategoryFilter] = useState('all');
+  const [sortOrder, setSortOrder] = useState('latest');
 
-  // Toasts
-  const [toasts, setToasts] = useState([]);
-
-  // Toast dispatch helper
-  const addToast = (message, type = 'success') => {
-    const id = Date.now();
-    setToasts(prev => [...prev, { id, message, type }]);
-    setTimeout(() => {
-      setToasts(prev => prev.filter(t => t.id !== id));
-    }, 3000);
-  };
-
-  // Sync dark mode style class
+  // Sync dark mode class
   useEffect(() => {
     if (darkMode) {
       document.documentElement.classList.add('dark');
@@ -63,20 +55,22 @@ export default function App() {
     localStorage.setItem('darkMode', JSON.stringify(darkMode));
   }, [darkMode]);
 
-  // Load transactions and metrics
+  // Load transactions, metrics, and categories
   const fetchData = async () => {
     setIsLoading(true);
     setError(null);
     try {
-      const [txResponse, analyticsResponse] = await Promise.all([
+      const [txResponse, analyticsResponse, categoriesResponse] = await Promise.all([
         api.get('/transactions'),
-        api.get('/analytics')
+        api.get('/analytics'),
+        api.get('/categories')
       ]);
       setTransactions(txResponse.data);
       setAnalytics(analyticsResponse.data);
+      setCategories(categoriesResponse.data.map(c => c.name));
     } catch (err) {
       console.error(err);
-      setError("Unable to connect to the banking API. Please make sure the FastAPI server is running on port 8000.");
+      setError("Unable to connect to the QuantBank server. Please make sure the FastAPI server is running on port 8000.");
     } finally {
       setIsLoading(false);
     }
@@ -95,14 +89,32 @@ export default function App() {
       const analyticsResponse = await api.get('/analytics');
       setAnalytics(analyticsResponse.data);
       
-      addToast(`Category reassigned to "${newCategory}"`, 'success');
+      toast.success(`Category reassigned to "${newCategory}"`);
     } catch (err) {
       console.error(err);
-      addToast("Failed to update category", "error");
+      toast.error("Failed to update category");
     }
   };
 
-  // Parse and save new alert alert message
+  // Add a new custom category
+  const handleAddCategory = async (catName) => {
+    try {
+      const response = await api.post('/categories', { name: catName });
+      setCategories(prev => [...prev, response.data.name].sort());
+      
+      // Update analytics structure to capture the new category
+      const analyticsResponse = await api.get('/analytics');
+      setAnalytics(analyticsResponse.data);
+      
+      toast.success(`Category "${response.data.name}" added successfully!`);
+    } catch (err) {
+      console.error(err);
+      const detail = err.response?.data?.detail || "Failed to create category.";
+      toast.error(detail);
+    }
+  };
+
+  // Parse and save transaction from raw alert string
   const handleAddTransaction = async (rawMessage) => {
     setIsSubmitLoading(true);
     try {
@@ -112,16 +124,16 @@ export default function App() {
       const analyticsResponse = await api.get('/analytics');
       setAnalytics(analyticsResponse.data);
 
-      addToast("UPI transaction alert parsed and saved!", "success");
+      toast.success("UPI transaction alert parsed and saved!");
     } catch (err) {
       console.error(err);
-      addToast("Failed to parse transaction alert", "error");
+      toast.error("Failed to parse transaction alert");
     } finally {
       setIsSubmitLoading(false);
     }
   };
 
-  // Delete transaction
+  // Delete transaction record
   const handleDeleteTransaction = async (id) => {
     try {
       await api.delete(`/transactions/${id}`);
@@ -130,14 +142,14 @@ export default function App() {
       const analyticsResponse = await api.get('/analytics');
       setAnalytics(analyticsResponse.data);
 
-      addToast("Transaction deleted successfully", "success");
+      toast.success("Transaction deleted successfully");
     } catch (err) {
       console.error(err);
-      addToast("Failed to delete transaction", "error");
+      toast.error("Failed to delete transaction");
     }
   };
 
-  // Filter calculations
+  // Filter transactions on client-side
   const filteredTransactions = transactions.filter(tx => {
     const matchesSearch = 
       (tx.merchant?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
@@ -147,26 +159,39 @@ export default function App() {
     return matchesSearch && matchesType && matchesCategory;
   });
 
+  // Sort transactions based on user selection
+  const sortedTransactions = [...filteredTransactions].sort((a, b) => {
+    if (sortOrder === 'latest') {
+      return new Date(b.timestamp) - new Date(a.timestamp);
+    } else if (sortOrder === 'oldest') {
+      return new Date(a.timestamp) - new Date(b.timestamp);
+    } else if (sortOrder === 'highest') {
+      return b.amount - a.amount;
+    } else if (sortOrder === 'lowest') {
+      return a.amount - b.amount;
+    }
+    return 0;
+  });
+
   const totalSavings = transactions.reduce((acc, curr) => acc + (curr.reward_amount || 0), 0);
 
   return (
     <div className="min-h-screen bg-gradient-to-tr from-slate-100 to-indigo-50/50 dark:from-slate-950 dark:to-slate-900 py-8 px-4 flex items-center justify-center transition-colors duration-200">
       
-      {/* Toast popup alerts */}
-      <div className="fixed top-5 right-5 z-50 flex flex-col gap-2 pointer-events-none">
-        {toasts.map(t => (
-          <div
-            key={t.id}
-            className={`px-4 py-3 rounded-xl shadow-lg border text-sm font-bold flex items-center gap-2 pointer-events-auto animate-in slide-in-from-top-5 duration-200 ${
-              t.type === 'success'
-                ? 'bg-emerald-50 dark:bg-emerald-950 border-emerald-200 dark:border-emerald-900 text-emerald-800 dark:text-emerald-300'
-                : 'bg-rose-50 dark:bg-rose-950 border-rose-200 dark:border-rose-900 text-rose-800 dark:text-rose-300'
-            }`}
-          >
-            <span>{t.message}</span>
-          </div>
-        ))}
-      </div>
+      {/* Toast notifications container */}
+      <Toaster 
+        position="top-right" 
+        toastOptions={{ 
+          style: { 
+            borderRadius: '16px', 
+            background: '#1e293b', 
+            color: '#f8fafc', 
+            fontSize: '11px',
+            fontWeight: 'bold',
+            boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
+          } 
+        }} 
+      />
 
       {/* Glassmorphic Rounded Centered Container */}
       <div className="w-full max-w-[1400px] bg-white/70 dark:bg-slate-900/60 backdrop-blur-md border border-slate-200/50 dark:border-slate-800/50 rounded-[32px] shadow-2xl p-6 flex flex-col gap-6">
@@ -189,7 +214,7 @@ export default function App() {
               <AlertOctagon size={36} />
             </div>
             <h2 className="text-lg font-black text-slate-800 dark:text-slate-200">
-              Database Sync Error
+              QuantBank Sync Error
             </h2>
             <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed font-semibold">
               {error}
@@ -233,10 +258,16 @@ export default function App() {
                   categoryPercentages={analytics.category_percentages} 
                 />
                 
-                <AddTransactionModal 
-                  onAddTransaction={handleAddTransaction}
-                  isLoading={isSubmitLoading}
-                />
+                <div className="flex flex-col gap-6">
+                  <CategoryManager 
+                    categories={categories} 
+                    onAddCategory={handleAddCategory}
+                  />
+                  <AddTransactionModal 
+                    onAddTransaction={handleAddTransaction}
+                    isLoading={isSubmitLoading}
+                  />
+                </div>
               </div>
 
             </div>
@@ -259,7 +290,7 @@ export default function App() {
                 </div>
 
                 <TransactionList 
-                  transactions={filteredTransactions}
+                  transactions={sortedTransactions}
                   onUpdateCategory={handleUpdateCategory}
                   onDeleteTransaction={handleDeleteTransaction}
                   searchQuery={searchQuery}
@@ -268,6 +299,9 @@ export default function App() {
                   setTypeFilter={setTypeFilter}
                   categoryFilter={categoryFilter}
                   setCategoryFilter={setCategoryFilter}
+                  sortOrder={sortOrder}
+                  setSortOrder={setSortOrder}
+                  categories={categories}
                 />
               </div>
 

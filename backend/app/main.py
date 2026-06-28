@@ -6,6 +6,7 @@ from app.utils.exceptions import APIException
 from app.utils.error_handlers import api_exception_handler, generic_exception_handler
 from app.routers.transactions import router as transactions_router
 from app.routers.analytics import router as analytics_router
+from app.routers.categories import router as categories_router
 
 # Create database tables if they do not exist
 Base.metadata.create_all(bind=engine)
@@ -18,8 +19,8 @@ finally:
     db.close()
 
 app = FastAPI(
-    title="Bank Transaction UPI Summary & Categorization API",
-    description="Backend API for parsing, categorizing, and calculating rewards for UPI transactions.",
+    title="QuantBank API",
+    description="Backend API for QuantBank - Intelligent Transaction Analytics & Insights.",
     version="1.0.0"
 )
 
@@ -39,10 +40,11 @@ app.add_middleware(
 # Include routers under /api prefix
 app.include_router(transactions_router, prefix="/api")
 app.include_router(analytics_router, prefix="/api")
+app.include_router(categories_router, prefix="/api")
 
 @app.get("/")
 def read_root():
     return {
         "status": "healthy",
-        "service": "Bank Transaction UPI Summary & Categorization API"
+        "service": "QuantBank API"
     }

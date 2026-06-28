@@ -1,4 +1,4 @@
-# Bank Transaction UPI Summary & Categorization Dashboard
+# QuantBank
 
 A production-style, interview-ready full-stack application built from scratch to parse raw, unstructured UPI and bank transaction alerts, automatically categorize expenditures, track projected savings/cashbacks, and present visual financial analytics in a modern dashboard interface.
 

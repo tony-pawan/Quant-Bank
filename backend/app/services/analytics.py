@@ -1,6 +1,6 @@
-# pyrefly: ignore [missing-import]
 from sqlalchemy.orm import Session
 from app.models.transaction import Transaction
+from app.models.category import Category
 from app.config.constants import DEFAULT_CATEGORIES
 from typing import Dict, Any
 
@@ -10,7 +10,7 @@ def calculate_analytics(db: Session) -> Dict[str, Any]:
     - total_income (credits)
     - total_expense (debits)
     - net_balance (income - expense)
-    - category_totals (sum of amounts per category)
+    - category_totals (sum of amounts per category, fetched dynamically from Category table)
     - category_percentages (percentage of total transaction volume per category)
     - top_category (the category with the highest overall debit transactions)
     - transaction_count (total number of transactions)
@@ -20,17 +20,20 @@ def calculate_analytics(db: Session) -> Dict[str, Any]:
     total_income = 0.0
     total_expense = 0.0
     
-    # Initialize category totals for all default categories
-    category_totals = {cat: 0.0 for cat in DEFAULT_CATEGORIES}
-    
-    # Track expense per category specifically to find the top spending category
-    expense_totals = {cat: 0.0 for cat in DEFAULT_CATEGORIES}
+    # Fetch categories dynamically from database
+    db_cats = [c.name for c in db.query(Category).all()]
+    if not db_cats:
+        db_cats = DEFAULT_CATEGORIES
+        
+    # Initialize category totals for all dynamic categories
+    category_totals = {cat: 0.0 for cat in db_cats}
+    expense_totals = {cat: 0.0 for cat in db_cats}
     
     for tx in transactions:
         amount = tx.amount
         category = tx.category
         
-        # Ensure dynamic categories are handled
+        # Fallback if a transaction is associated with a category not in category table
         if category not in category_totals:
             category_totals[category] = 0.0
         if category not in expense_totals:
@@ -54,18 +57,16 @@ def calculate_analytics(db: Session) -> Dict[str, Any]:
         category_totals[cat] = round(category_totals[cat], 2)
 
     # Compute category percentages based on total transaction volume
-    # (or sum of all categorized amounts)
     total_volume = sum(category_totals.values())
     category_percentages = {}
     for cat, val in category_totals.items():
         percentage = (val / total_volume * 100) if total_volume > 0 else 0.0
         category_percentages[cat] = round(percentage, 2)
 
-    # Find the top spending category (highest debit/expense)
+    # Find the top spending category (highest debit/expense, excluding Salary)
     top_spending_category = "None"
     max_expense = 0.0
     for cat, val in expense_totals.items():
-        # Skip Salary for spending calculation
         if cat == "Salary":
             continue
         if val > max_expense:
@@ -74,7 +75,6 @@ def calculate_analytics(db: Session) -> Dict[str, Any]:
 
     # Fallback if no expenses recorded
     if top_spending_category == "None" and len(transactions) > 0:
-        # Fall back to overall highest category
         top_spending_category = max(category_totals, key=category_totals.get)
 
     return {
